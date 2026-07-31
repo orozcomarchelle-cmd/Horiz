@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Horizon Bank - Mary Smith</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+  <div id="app" class="min-h-screen p-4">
+    <!-- LOGIN -->
+    <div id="login" class="flex items-center justify-center min-h-screen">
+      <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
+        <h1 class="text-3xl font-bold text-blue-700 mb-6">Horizon Bank</h1>
+        <input id="email" type="email" placeholder="Email" class="w-full p-3 border rounded-lg mb-3">
+        <input id="password" type="password" placeholder="Password" class="w-full p-3 border rounded-lg mb-4">
+        <button onclick="login()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700">Login</button>
+        <p id="loginError" class="text-sm text-red-500 mt-2 text-center hidden">Invalid email or password.</p>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="hidden max-w-6xl mx-auto">
+      <div class="bg-white p-6 rounded-2xl shadow-lg mb-4 flex justify-between">
+        <div>
+          <h1 class="text-2xl font-bold">Welcome, <span id="userName"></span></h1>
+          <p class="text-gray-500">Account **** 4582</p>
+          <p id="lastLogin" class="text-sm text-gray-400 mt-1"></p>
+        </div>
+        <button onclick="logout()" class="text-red-500 font-semibold">Logout</button>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 mb-6">
+        <!-- BALANCE CARD -->
+        <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 rounded-xl">
+          <p class="opacity-80">Total Balance</p>
+          <p id="balance" class="text-4xl font-bold mt-2"></p>
+          <button onclick="showTransfer()" class="mt-4 bg-white text-blue-700 px-4 py-2 rounded-lg font-semibold">Send Money</button>
+        </div>
+      </div>
+
+      <!-- TRANSFER MODAL -->
+      <div id="transferModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-xl w-96">
+          <h2 class="font-bold text-xl mb-4">Send Money</h2>
+          <input id="toName" placeholder="Recipient Name" class="w-full p-2 border rounded mb-3">
+          <input id="toAccount" placeholder="Recipient Account Number" class="w-full p-2 border rounded mb-3">
+          <input id="amount" type="number" placeholder="Amount (USD)" class="w-full p-2 border rounded mb-3">
+          <textarea id="memo" placeholder="Memo (optional)" class="w-full p-2 border rounded mb-3" rows="2"></textarea>
+          <button onclick="sendMoney()" class="w-full bg-blue-600 text-white p-2 rounded mb-2">Send</button>
+          <button onclick="hideTransfer()" class="w-full bg-gray-300 p-2 rounded">Cancel</button>
+        </div>
+      </div>
+
+      <!-- TRANSACTIONS -->
+      <div class="bg-white p-6 rounded-xl shadow">
+        <h2 class="text-xl font-bold mb-4">Transaction History</h2>
+        <div id="transactions" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---- In-memory demo state (resets on page reload) ----
+    const DEMO_USER = { email: "mary@demo.com", password: "demo123", name: "Mary Smith" };
+    let state = {
+      balance: 500000.00,
+      transactions: [
+        { desc: "Grocery Store", amount: -84.20, date: "2026-07-28" },
+        { desc: "Payroll Deposit", amount: 2100.00, date: "2026-07-25" },
+        { desc: "Electric Bill", amount: -120.75, date: "2026-07-20" },
+        { desc: "Coffee Shop", amount: -6.50, date: "2026-07-19" },
+        { desc: "Gym Membership", amount: -45.00, date: "2026-07-17" },
+        { desc: "Payroll Deposit", amount: 2100.00, date: "2026-07-11" },
+        { desc: "Streaming Subscription", amount: -15.99, date: "2026-07-10" },
+        { desc: "Restaurant", amount: -62.30, date: "2026-07-08" },
+        { desc: "Gas Station", amount: -38.75, date: "2026-07-06" },
+        { desc: "Pharmacy", amount: -22.10, date: "2026-07-04" },
+        { desc: "Internet Bill", amount: -70.00, date: "2026-07-02" },
+        { desc: "Payroll Deposit", amount: 2100.00, date: "2026-06-27" },
+        { desc: "Grocery Store", amount: -95.40, date: "2026-06-24" },
+        { desc: "Water Bill", amount: -55.20, date: "2026-06-22" },
+        { desc: "Clothing Store", amount: -110.60, date: "2026-06-18" }
+      ]
+    };
+
+    function login() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const errorEl = document.getElementById('loginError');
+
+      if (email === DEMO_USER.email && password === DEMO_USER.password) {
+        errorEl.classList.add('hidden');
+        document.getElementById('login').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        document.getElementById('userName').textContent = DEMO_USER.name;
+        document.getElementById('lastLogin').textContent =
+          'Last login: ' + new Date().toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          });
+        renderBalance();
+        renderTransactions();
+      } else {
+        errorEl.classList.remove('hidden');
+      }
+    }
+
+    function logout() {
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('login').classList.remove('hidden');
+      document.getElementById('email').value = '';
+      document.getElementById('password').value = '';
+    }
+
+    function renderBalance() {
+      document.getElementById('balance').textContent =
+        '$' + state.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function renderTransactions() {
+      const container = document.getElementById('transactions');
+      container.innerHTML = '';
+      state.transactions.forEach(tx => {
+        const isPositive = tx.amount >= 0;
+        const row = document.createElement('div');
+        row.className = 'flex justify-between items-center p-3 border-b last:border-b-0';
+        row.innerHTML = `
+          <div>
+            <p class="font-medium">${escapeHtml(tx.desc)}</p>
+            <p class="text-sm text-gray-400">${escapeHtml(tx.date)}</p>
+          </div>
+          <p class="font-semibold ${isPositive ? 'text-green-600' : 'text-red-500'}">
+            ${isPositive ? '+' : ''}${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function showTransfer() {
+      document.getElementById('transferModal').classList.remove('hidden');
+      document.getElementById('transferModal').classList.add('flex');
+    }
+
+    function hideTransfer() {
+      document.getElementById('transferModal').classList.add('hidden');
+      document.getElementById('transferModal').classList.remove('flex');
+      document.getElementById('toName').value = '';
+      document.getElementById('toAccount').value = '';
+      document.getElementById('amount').value = '';
+      document.getElementById('memo').value = '';
+    }
+
+    function sendMoney() {
+      const toName = document.getElementById('toName').value.trim();
+      const toAccount = document.getElementById('toAccount').value.trim();
+      const amount = parseFloat(document.getElementById('amount').value);
+      const memo = document.getElementById('memo').value.trim();
+
+      if (!toName) {
+        alert('Please enter a recipient name.');
+        return;
+      }
+      if (!toAccount) {
+        alert('Please enter a recipient account number.');
+        return;
+      }
+      if (!amount || amount <= 0) {
+        alert('Please enter a valid amount.');
+        return;
+      }
+      if (amount > state.balance) {
+        alert('Insufficient funds for this transfer.');
+        return;
+      }
+
+      state.balance -= amount;
+      state.transactions.unshift({
+        desc: 'Transfer to ' + toName + (memo ? ' - ' + memo : ''),
+        amount: -amount,
+        date: new Date().toISOString().slice(0, 10)
+      });
+
+      renderBalance();
+      renderTransactions();
+      hideTransfer();
+    }
+
+  </script>
+</body>
+</html>
